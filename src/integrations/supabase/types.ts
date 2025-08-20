@@ -47,6 +47,13 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_expenses_property"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
         ]
       }
       maintenance_requests: {
@@ -75,6 +82,20 @@ export type Database = {
           unit_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_maintenance_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fk_maintenance_unit"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "maintenance_requests_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -120,6 +141,13 @@ export type Database = {
           tenancy_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_payments_tenancy"
+            columns: ["tenancy_id"]
+            isOneToOne: false
+            referencedRelation: "tenancies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_tenancy_id_fkey"
             columns: ["tenancy_id"]
@@ -189,6 +217,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_properties_landlord"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "properties_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: false
@@ -229,6 +264,20 @@ export type Database = {
           unit_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tenancies_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fk_tenancies_unit"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tenancies_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -277,6 +326,13 @@ export type Database = {
           unit_number?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_units_property"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "units_property_id_fkey"
             columns: ["property_id"]
