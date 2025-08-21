@@ -2,10 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, DollarSign, Home, AlertCircle, Wrench } from 'lucide-react';
+import { Calendar, DollarSign, Home, AlertCircle, Wrench, FileText, Receipt } from 'lucide-react';
+import MaintenanceRequestForm from '@/components/forms/MaintenanceRequestForm';
+import PaymentInterface from '@/components/tenant/PaymentInterface';
+import LeaseAgreementCard from '@/components/tenant/LeaseAgreementCard';
+import MaintenanceRequests from '@/components/tenant/MaintenanceRequests';
 
 interface Tenancy {
   id: string;
@@ -39,6 +44,9 @@ const TenantDashboard = () => {
   const [tenancies, setTenancies] = useState<Tenancy[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
+  const [showPaymentInterface, setShowPaymentInterface] = useState(false);
+  const [selectedTenancy, setSelectedTenancy] = useState<Tenancy | null>(null);
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -90,6 +98,27 @@ const TenantDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentInterface(false);
+    setSelectedTenancy(null);
+    fetchTenantData();
+  };
+
+  const handleMaintenanceSuccess = () => {
+    setShowMaintenanceForm(false);
+    setSelectedTenancy(null);
+  };
+
+  const handlePayRent = (tenancy: Tenancy) => {
+    setSelectedTenancy(tenancy);
+    setShowPaymentInterface(true);
+  };
+
+  const handleMaintenanceRequest = (tenancy: Tenancy) => {
+    setSelectedTenancy(tenancy);
+    setShowMaintenanceForm(true);
   };
 
   useEffect(() => {
@@ -186,97 +215,195 @@ const TenantDashboard = () => {
         </Card>
       </div>
 
-      {/* Current Rentals */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold">My Rentals</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {activeTenancies.map((tenancy) => (
-            <Card key={tenancy.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{tenancy.units.properties.name}</span>
-                  <Badge variant={tenancy.status === 'active' ? 'default' : 'secondary'}>
-                    {tenancy.status}
-                  </Badge>
-                </CardTitle>
-                <CardDescription>
-                  Unit {tenancy.units.unit_number} - {tenancy.units.bedrooms} bed, {tenancy.units.bathrooms} bath
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Address:</span>
-                    <span className="font-medium text-right">
-                      {tenancy.units.properties.address}, {tenancy.units.properties.city}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Monthly Rent:</span>
-                    <span className="font-medium">${Number(tenancy.rent_amount).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Start Date:</span>
-                    <span className="font-medium">
-                      {new Date(tenancy.start_date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {tenancy.end_date && (
-                    <div className="flex justify-between text-sm">
-                      <span>End Date:</span>
-                      <span className="font-medium">
-                        {new Date(tenancy.end_date).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="lease">Lease</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+        </TabsList>
 
-                <div className="flex gap-2 mt-4">
-                  <Button size="sm" className="flex-1">
-                    Pay Rent
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex items-center gap-1">
-                    <Wrench className="h-4 w-4" />
-                    Maintenance
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Recent Payments */}
-      {payments.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold">Recent Payments</h2>
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment History</CardTitle>
-              <CardDescription>Your recent rent payments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {payments.slice(0, 5).map((payment) => (
-                  <div key={payment.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                    <div>
-                      <div className="font-medium">${Number(payment.amount).toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(payment.payment_date).toLocaleDateString()} • {payment.method}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Current Rentals */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">My Rentals</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {activeTenancies.map((tenancy) => (
+                <Card key={tenancy.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{tenancy.units.properties.name}</span>
+                      <Badge variant={tenancy.status === 'active' ? 'default' : 'secondary'}>
+                        {tenancy.status}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Unit {tenancy.units.unit_number} - {tenancy.units.bedrooms} bed, {tenancy.units.bathrooms} bath
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Address:</span>
+                        <span className="font-medium text-right">
+                          {tenancy.units.properties.address}, {tenancy.units.properties.city}
+                        </span>
                       </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Monthly Rent:</span>
+                        <span className="font-medium">${Number(tenancy.rent_amount).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Start Date:</span>
+                        <span className="font-medium">
+                          {new Date(tenancy.start_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {tenancy.end_date && (
+                        <div className="flex justify-between text-sm">
+                          <span>End Date:</span>
+                          <span className="font-medium">
+                            {new Date(tenancy.end_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <Badge variant={
-                      payment.status === 'completed' ? 'default' : 
-                      payment.status === 'pending' ? 'secondary' : 'destructive'
-                    }>
-                      {payment.status}
-                    </Badge>
+
+                    <div className="flex gap-2 mt-4">
+                      <Button 
+                        size="sm" 
+                        className="flex-1" 
+                        onClick={() => handlePayRent(tenancy)}
+                      >
+                        Pay Rent
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex items-center gap-1"
+                        onClick={() => handleMaintenanceRequest(tenancy)}
+                      >
+                        <Wrench className="h-4 w-4" />
+                        Maintenance
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="lease" className="space-y-4">
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Lease Agreements</h2>
+            {activeTenancies.map((tenancy) => (
+              <LeaseAgreementCard key={tenancy.id} tenancy={tenancy} />
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Payment History</h2>
+              {activeTenancies.length > 0 && (
+                <Button 
+                  onClick={() => handlePayRent(activeTenancies[0])}
+                  className="flex items-center gap-2"
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Make Payment
+                </Button>
+              )}
+            </div>
+            
+            {payments.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Receipt className="h-5 w-5" />
+                    Transaction History
+                  </CardTitle>
+                  <CardDescription>All your rent payments and receipts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {payments.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div>
+                          <div className="font-medium">${Number(payment.amount).toLocaleString()}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(payment.payment_date).toLocaleDateString()} • {payment.method}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={
+                            payment.status === 'completed' ? 'default' : 
+                            payment.status === 'pending' ? 'secondary' : 'destructive'
+                          }>
+                            {payment.status}
+                          </Badge>
+                          {payment.status === 'completed' && (
+                            <Button variant="ghost" size="sm">
+                              <Receipt className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-medium mb-2">No payment history</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Your payment history will appear here once you make your first payment.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="space-y-4">
+          <MaintenanceRequests 
+            onCreateRequest={() => {
+              if (activeTenancies.length > 0) {
+                handleMaintenanceRequest(activeTenancies[0]);
+              }
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Modals */}
+      {showMaintenanceForm && selectedTenancy && (
+        <MaintenanceRequestForm
+          unitId={selectedTenancy.units.id}
+          unitNumber={selectedTenancy.units.unit_number}
+          propertyName={selectedTenancy.units.properties.name}
+          onSuccess={handleMaintenanceSuccess}
+          onCancel={() => {
+            setShowMaintenanceForm(false);
+            setSelectedTenancy(null);
+          }}
+        />
+      )}
+
+      {showPaymentInterface && selectedTenancy && (
+        <PaymentInterface
+          tenancy={selectedTenancy}
+          onSuccess={handlePaymentSuccess}
+          onCancel={() => {
+            setShowPaymentInterface(false);
+            setSelectedTenancy(null);
+          }}
+        />
       )}
     </div>
   );

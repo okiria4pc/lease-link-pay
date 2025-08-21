@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Users, DollarSign, Plus, Home } from 'lucide-react';
+import { Building2, Users, DollarSign, Plus, Home, Wallet, Receipt } from 'lucide-react';
 import PropertyForm from '@/components/forms/PropertyForm';
 import UnitForm from '@/components/forms/UnitForm';
+import TenantManagement from '@/components/landlord/TenantManagement';
+import RentCollection from '@/components/landlord/RentCollection';
+import PayoutRequests from '@/components/landlord/PayoutRequests';
 
 interface Property {
   id: string;
@@ -167,81 +171,163 @@ const LandlordDashboard = () => {
         </Card>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-4">
-        <Button onClick={() => setShowPropertyForm(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Property
-        </Button>
-        <Button 
-          onClick={() => setShowUnitForm(true)} 
-          variant="outline" 
-          className="flex items-center gap-2"
-          disabled={properties.length === 0}
-        >
-          <Home className="h-4 w-4" />
-          Add Unit
-        </Button>
-      </div>
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="tenants">Tenants</TabsTrigger>
+          <TabsTrigger value="collection">Collection</TabsTrigger>
+          <TabsTrigger value="payouts">Payouts</TabsTrigger>
+          <TabsTrigger value="properties">Properties</TabsTrigger>
+        </TabsList>
 
-      {properties.length === 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome to Your Property Management Dashboard</CardTitle>
-            <CardDescription>
-              Get started by adding your first property. You can then add units to each property and manage your rentals.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <TabsContent value="overview" className="space-y-4">
+          {/* Action Buttons */}
+          <div className="flex gap-4">
             <Button onClick={() => setShowPropertyForm(true)} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              Add Your First Property
+              Add Property
             </Button>
-          </CardContent>
-        </Card>
-      )}
+            <Button 
+              onClick={() => setShowUnitForm(true)} 
+              variant="outline" 
+              className="flex items-center gap-2"
+              disabled={properties.length === 0}
+            >
+              <Home className="h-4 w-4" />
+              Add Unit
+            </Button>
+          </div>
 
-      {/* Properties List */}
-      {properties.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {properties.map((property) => {
-            const propertyUnits = units.filter(unit => unit.property_id === property.id);
-            const occupiedCount = propertyUnits.filter(unit => unit.status === 'occupied').length;
-            
-            return (
-              <Card key={property.id}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>{property.name}</span>
-                    <Badge variant="outline">
-                      {propertyUnits.length} unit{propertyUnits.length !== 1 ? 's' : ''}
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription>
-                    {property.address}, {property.city}, {property.country}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Occupancy:</span>
-                      <span className="font-medium">
-                        {occupiedCount}/{propertyUnits.length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Monthly Rent:</span>
-                      <span className="font-medium">
-                        ${propertyUnits.reduce((sum, unit) => sum + Number(unit.rent_amount || 0), 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+          {properties.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Welcome to Your Property Management Dashboard</CardTitle>
+                <CardDescription>
+                  Get started by adding your first property. You can then add units to each property and manage your rentals.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setShowPropertyForm(true)} className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Your First Property
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {properties.map((property) => {
+                const propertyUnits = units.filter(unit => unit.property_id === property.id);
+                const occupiedCount = propertyUnits.filter(unit => unit.status === 'occupied').length;
+                
+                return (
+                  <Card key={property.id}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span>{property.name}</span>
+                        <Badge variant="outline">
+                          {propertyUnits.length} unit{propertyUnits.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        {property.address}, {property.city}, {property.country}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Occupancy:</span>
+                          <span className="font-medium">
+                            {occupiedCount}/{propertyUnits.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Monthly Rent:</span>
+                          <span className="font-medium">
+                            ${propertyUnits.reduce((sum, unit) => sum + Number(unit.rent_amount || 0), 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="tenants">
+          <TenantManagement />
+        </TabsContent>
+
+        <TabsContent value="collection">
+          <RentCollection />
+        </TabsContent>
+
+        <TabsContent value="payouts">
+          <PayoutRequests />
+        </TabsContent>
+
+        <TabsContent value="properties" className="space-y-4">
+          {/* Same property management content as before */}
+          <div className="flex gap-4">
+            <Button onClick={() => setShowPropertyForm(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Property
+            </Button>
+            <Button 
+              onClick={() => setShowUnitForm(true)} 
+              variant="outline" 
+              className="flex items-center gap-2"
+              disabled={properties.length === 0}
+            >
+              <Home className="h-4 w-4" />
+              Add Unit
+            </Button>
+          </div>
+
+          {properties.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {properties.map((property) => {
+                const propertyUnits = units.filter(unit => unit.property_id === property.id);
+                const occupiedCount = propertyUnits.filter(unit => unit.status === 'occupied').length;
+                
+                return (
+                  <Card key={property.id}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span>{property.name}</span>
+                        <Badge variant="outline">
+                          {propertyUnits.length} unit{propertyUnits.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        {property.address}, {property.city}, {property.country}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Occupancy:</span>
+                          <span className="font-medium">
+                            {occupiedCount}/{propertyUnits.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Monthly Rent:</span>
+                          <span className="font-medium">
+                            ${propertyUnits.reduce((sum, unit) => sum + Number(unit.rent_amount || 0), 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Forms */}
       {showPropertyForm && (
