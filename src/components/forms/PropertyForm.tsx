@@ -25,7 +25,17 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ onSuccess, onCancel }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.user_id) return;
+    if (!profile?.user_id) {
+      toast({
+        title: "Error",
+        description: "User profile not found. Please sign in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('Current profile:', profile);
+    console.log('Attempting to create property with landlord_id:', profile.user_id);
 
     setLoading(true);
     try {
