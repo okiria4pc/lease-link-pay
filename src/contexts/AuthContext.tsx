@@ -155,7 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
-        window.location.href = '/';
       }
 
       return { error };
