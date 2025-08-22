@@ -21,7 +21,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
     );
   }
 
-  if (!user || !profile) {
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (!profile && !loading) {
     return <Navigate to="/auth" replace />;
   }
 
