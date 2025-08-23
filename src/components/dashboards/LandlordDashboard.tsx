@@ -42,12 +42,14 @@ const LandlordDashboard = () => {
 
   const fetchData = async () => {
     try {
+      console.log('Fetching properties data...');
       // Fetch properties
       const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
         .select('*')
         .order('created_at', { ascending: false });
 
+      console.log('Properties data:', propertiesData, 'Error:', propertiesError);
       if (propertiesError) throw propertiesError;
 
       // Fetch units with property data
