@@ -29,51 +29,69 @@ interface Unit {
   rent_amount: number;
   status: string;
   property_id: string;
-  properties: Property;
+  properties?: Property;
 }
 
 const LandlordDashboard = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [showUnitForm, setShowUnitForm] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
     try {
+      setLoading(true);
+      setError(null);
       console.log('Fetching properties data...');
+      
+      // Check authentication first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('You must be logged in to view your properties');
+      }
+      console.log('Authenticated user:', user.id);
+      
       // Fetch properties
       const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Properties data:', propertiesData, 'Error:', propertiesError);
+      console.log('Properties query result:', { data: propertiesData, error: propertiesError });
       if (propertiesError) throw propertiesError;
 
-      // Fetch units with property data
+      // Fetch units with property data - simplified query to avoid join issues
       const { data: unitsData, error: unitsError } = await supabase
         .from('units')
-        .select(`
-          *,
-          properties!units_property_id_fkey (
-            id,
-            name,
-            address,
-            city,
-            country,
-            created_at
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
+      console.log('Units query result:', { data: unitsData, error: unitsError });
       if (unitsError) throw unitsError;
 
+      // If we have units, fetch property details for each unit
+      let unitsWithProperties: Unit[] = [];
+      if (unitsData && unitsData.length > 0) {
+        unitsWithProperties = unitsData.map((unit) => {
+          const property = propertiesData?.find(p => p.id === unit.property_id);
+          return { ...unit, properties: property };
+        });
+      }
+
       setProperties(propertiesData || []);
-      setUnits(unitsData || []);
+      setUnits(unitsWithProperties);
+      
+      console.log('Data fetched successfully:', {
+        properties: propertiesData?.length || 0,
+        units: unitsWithProperties?.length || 0
+      });
+      
     } catch (error: any) {
       console.error('Error fetching data:', error);
+      setError(error.message);
       toast({
         title: "Error loading data",
         description: error.message,
@@ -199,7 +217,30 @@ const LandlordDashboard = () => {
               <Home className="h-4 w-4" />
               Add Unit
             </Button>
+            <Button 
+              onClick={fetchData} 
+              variant="outline" 
+              className="flex items-center gap-2"
+              disabled={loading}
+            >
+              Refresh Data
+            </Button>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <Card className="border-destructive">
+              <CardHeader>
+                <CardTitle className="text-destructive">Error Loading Data</CardTitle>
+                <CardDescription>{error}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={fetchData} variant="outline">
+                  Try Again
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {properties.length === 0 ? (
             <Card>
