@@ -209,7 +209,10 @@ const LandlordDashboard = () => {
               Add Property
             </Button>
             <Button 
-              onClick={() => setShowUnitForm(true)} 
+              onClick={() => {
+                console.log('Add Unit clicked, properties length:', properties.length);
+                setShowUnitForm(true);
+              }} 
               variant="outline" 
               className="flex items-center gap-2"
               disabled={properties.length === 0}
@@ -319,7 +322,10 @@ const LandlordDashboard = () => {
               Add Property
             </Button>
             <Button 
-              onClick={() => setShowUnitForm(true)} 
+              onClick={() => {
+                console.log('Add Unit clicked (properties tab), properties length:', properties.length);
+                setShowUnitForm(true);
+              }} 
               variant="outline" 
               className="flex items-center gap-2"
               disabled={properties.length === 0}
