@@ -11,6 +11,7 @@ import MaintenanceRequestForm from '@/components/forms/MaintenanceRequestForm';
 import PaymentInterface from '@/components/tenant/PaymentInterface';
 import LeaseAgreementCard from '@/components/tenant/LeaseAgreementCard';
 import MaintenanceRequests from '@/components/tenant/MaintenanceRequests';
+import JoinPropertySearch from '@/components/tenant/JoinPropertySearch';
 
 interface Tenancy {
   id: string;
@@ -47,6 +48,7 @@ const TenantDashboard = () => {
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
   const [showPaymentInterface, setShowPaymentInterface] = useState(false);
   const [selectedTenancy, setSelectedTenancy] = useState<Tenancy | null>(null);
+  const [defaultTab, setDefaultTab] = useState('overview');
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -160,20 +162,75 @@ const TenantDashboard = () => {
 
   if (tenancies.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Welcome to Your Tenant Dashboard</CardTitle>
-          <CardDescription>
-            You don't have any active tenancies. Contact your landlord to get set up with a rental unit.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-6">
-            <Home className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No rental units found</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        {/* Stats Cards - Show zeros for new tenants */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Rentals</CardTitle>
+              <Home className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Currently renting</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Monthly Rent</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">$0</div>
+              <p className="text-xs text-muted-foreground">Total monthly rent due</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paid This Month</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">$0</div>
+              <p className="text-xs text-muted-foreground">Payments this month</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Tabs - Allow access to Join Property feature */}
+        <Tabs value={defaultTab} onValueChange={setDefaultTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="join">Join Property</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="join" className="space-y-4">
+            <JoinPropertySearch />
+          </TabsContent>
+
+          <TabsContent value="overview" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Welcome to Your Tenant Dashboard</CardTitle>
+                <CardDescription>
+                  You don't have any active tenancies yet. Use the "Join Property" tab to search and request to join available rental properties.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-6">
+                  <Home className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-4">No rental units found</p>
+                  <Button onClick={() => setDefaultTab('join')}>
+                    Browse Properties
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     );
   }
 
@@ -217,8 +274,9 @@ const TenantDashboard = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="join">Join Property</TabsTrigger>
           <TabsTrigger value="lease">Lease</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
@@ -293,6 +351,10 @@ const TenantDashboard = () => {
               ))}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="join" className="space-y-4">
+          <JoinPropertySearch />
         </TabsContent>
 
         <TabsContent value="lease" className="space-y-4">

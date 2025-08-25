@@ -11,6 +11,7 @@ import UnitForm from '@/components/forms/UnitForm';
 import TenantManagement from '@/components/landlord/TenantManagement';
 import RentCollection from '@/components/landlord/RentCollection';
 import PayoutRequests from '@/components/landlord/PayoutRequests';
+import PendingRequests from '@/components/landlord/PendingRequests';
 
 interface Property {
   id: string;
@@ -193,8 +194,9 @@ const LandlordDashboard = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="tenants">Tenants</TabsTrigger>
           <TabsTrigger value="collection">Collection</TabsTrigger>
           <TabsTrigger value="payouts">Payouts</TabsTrigger>
@@ -300,6 +302,10 @@ const LandlordDashboard = () => {
               })}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="requests">
+          <PendingRequests />
         </TabsContent>
 
         <TabsContent value="tenants">
