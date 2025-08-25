@@ -56,6 +56,64 @@ export type Database = {
           },
         ]
       }
+      join_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string | null
+          property_id: string
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["join_request_status"] | null
+          tenant_id: string
+          unit_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          property_id: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["join_request_status"] | null
+          tenant_id: string
+          unit_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          property_id?: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["join_request_status"] | null
+          tenant_id?: string
+          unit_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "join_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "join_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "join_requests_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_requests: {
         Row: {
           created_at: string | null
@@ -194,6 +252,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           id: string
+          is_searchable: boolean | null
           landlord_id: string | null
           name: string
         }
@@ -203,6 +262,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           id?: string
+          is_searchable?: boolean | null
           landlord_id?: string | null
           name: string
         }
@@ -212,6 +272,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           id?: string
+          is_searchable?: boolean | null
           landlord_id?: string | null
           name?: string
         }
@@ -350,6 +411,7 @@ export type Database = {
       }
     }
     Enums: {
+      join_request_status: "pending" | "approved" | "rejected"
       user_role: "tenant" | "landlord" | "admin"
     }
     CompositeTypes: {
@@ -478,6 +540,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      join_request_status: ["pending", "approved", "rejected"],
       user_role: ["tenant", "landlord", "admin"],
     },
   },
