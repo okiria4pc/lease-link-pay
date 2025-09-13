@@ -52,7 +52,7 @@ const JoinPropertySearch = () => {
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [selectedUnit, setSelectedUnit] = useState<string>('');
+  const [selectedUnit, setSelectedUnit] = useState<string>('any');
   const [message, setMessage] = useState('');
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const { profile } = useAuth();
@@ -139,7 +139,7 @@ const JoinPropertySearch = () => {
       const requestData = {
         tenant_id: profile.user_id,
         property_id: selectedProperty.id,
-        unit_id: selectedUnit || null,
+        unit_id: selectedUnit && selectedUnit !== "any" ? selectedUnit : null,
         message: message.trim() || null,
       };
 
@@ -156,7 +156,7 @@ const JoinPropertySearch = () => {
 
       setShowRequestDialog(false);
       setSelectedProperty(null);
-      setSelectedUnit('');
+      setSelectedUnit('any');
       setMessage('');
       fetchMyRequests();
     } catch (error: any) {
@@ -383,7 +383,7 @@ const JoinPropertySearch = () => {
                     <SelectValue placeholder="Any available unit" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any available unit</SelectItem>
+                    <SelectItem value="any">Any available unit</SelectItem>
                     {availableUnits.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
                         Unit {unit.unit_number} - {unit.bedrooms} bed, {unit.bathrooms} bath - ${Number(unit.rent_amount).toLocaleString()}/month
