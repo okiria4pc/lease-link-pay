@@ -50,6 +50,23 @@ const PendingRequests = () => {
 
     try {
       setLoading(true);
+      
+      // First get the property IDs that belong to this landlord
+      const { data: landlordProperties, error: propertiesError } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('landlord_id', profile.user_id);
+
+      if (propertiesError) throw propertiesError;
+      
+      const propertyIds = landlordProperties?.map(p => p.id) || [];
+      
+      if (propertyIds.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Now get join requests for those properties
       const { data, error } = await supabase
         .from('join_requests')
         .select(`
@@ -71,8 +88,8 @@ const PendingRequests = () => {
             phone
           )
         `)
-        .eq('properties.landlord_id', profile.user_id)
-        .in('status', ['pending'])
+        .in('property_id', propertyIds)
+        .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
