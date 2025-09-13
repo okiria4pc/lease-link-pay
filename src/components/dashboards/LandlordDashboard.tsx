@@ -56,10 +56,11 @@ const LandlordDashboard = () => {
       }
       console.log('Authenticated user:', user.id);
       
-      // Fetch properties
+      // Fetch properties owned by current user
       const { data: propertiesData, error: propertiesError } = await supabase
         .from('properties')
         .select('*')
+        .eq('landlord_id', user.id)
         .order('created_at', { ascending: false });
 
       console.log('Properties query result:', { data: propertiesData, error: propertiesError });
