@@ -5,11 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Phone, Mail, MapPin, Calendar, DollarSign } from 'lucide-react';
+import { Users, Plus, Phone, Mail, MapPin, Calendar, DollarSign, UserMinus, AlertTriangle } from 'lucide-react';
 
 interface TenantInfo {
   id: string;
@@ -48,6 +49,9 @@ const TenantManagement: React.FC = () => {
   const [availableUnits, setAvailableUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddTenant, setShowAddTenant] = useState(false);
+  const [showRemoveTenant, setShowRemoveTenant] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<TenantInfo | null>(null);
+  const [removalReason, setRemovalReason] = useState('');
   const [addTenantForm, setAddTenantForm] = useState({
     email: '',
     fullName: '',
@@ -195,6 +199,48 @@ const TenantManagement: React.FC = () => {
         title: 'Error adding tenant',
         description: error.message,
         variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRemoveTenant = async () => {
+    if (!selectedTenant) return;
+
+    try {
+      // End the tenancy
+      const { error: tenancyError } = await supabase
+        .from('tenancies')
+        .update({ 
+          status: 'terminated',
+          end_date: new Date().toISOString().split('T')[0] // Today's date
+        })
+        .eq('id', selectedTenant.id);
+
+      if (tenancyError) throw tenancyError;
+
+      // Update unit status back to vacant
+      const { error: unitError } = await supabase
+        .from('units')
+        .update({ status: 'vacant' })
+        .eq('id', selectedTenant.units.id);
+
+      if (unitError) throw unitError;
+
+      toast({
+        title: "Tenant removed",
+        description: `${selectedTenant.profiles.full_name} has been removed from ${selectedTenant.units.properties.name}.`,
+      });
+
+      setShowRemoveTenant(false);
+      setSelectedTenant(null);
+      setRemovalReason('');
+      fetchTenantData();
+    } catch (error: any) {
+      console.error('Error removing tenant:', error);
+      toast({
+        title: "Error removing tenant",
+        description: error.message,
+        variant: "destructive",
       });
     }
   };
@@ -403,6 +449,18 @@ const TenantManagement: React.FC = () => {
                       <Button size="sm" variant="outline">
                         Send Message
                       </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => {
+                          setSelectedTenant(tenant);
+                          setShowRemoveTenant(true);
+                        }}
+                        className="flex items-center gap-1"
+                      >
+                        <UserMinus className="h-3 w-3" />
+                        Remove
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -411,6 +469,44 @@ const TenantManagement: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Remove Tenant Dialog */}
+      <Dialog open={showRemoveTenant} onOpenChange={setShowRemoveTenant}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Remove Tenant
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove {selectedTenant?.profiles?.full_name} from {selectedTenant?.units?.properties?.name}? 
+              This will end their tenancy and make the unit available for new tenants.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="removalReason">Reason for Removal (Optional)</Label>
+              <Textarea
+                id="removalReason"
+                placeholder="Enter reason for tenant removal (e.g., non-payment of rent, lease violation)..."
+                value={removalReason}
+                onChange={(e) => setRemovalReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRemoveTenant(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveTenant}>
+              Remove Tenant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

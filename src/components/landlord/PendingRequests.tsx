@@ -146,7 +146,7 @@ const PendingRequests = () => {
 
       toast({
         title: "Request approved",
-        description: `${request.profiles?.full_name || 'User'}'s request has been approved.`,
+        description: `${request.profiles?.full_name || 'User'} is now your tenant! View them in the Tenants tab.`,
       });
 
       fetchRequests();
@@ -248,7 +248,7 @@ const PendingRequests = () => {
             Pending Join Requests
           </CardTitle>
           <CardDescription>
-            Review and approve tenant requests to join your properties
+            Review and approve tenant requests to join your properties. Approved requests automatically become active tenancies.
           </CardDescription>
         </CardHeader>
         <CardContent>
