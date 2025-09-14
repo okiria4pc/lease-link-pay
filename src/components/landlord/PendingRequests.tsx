@@ -29,7 +29,7 @@ interface JoinRequest {
     bathrooms: number;
     rent_amount: number;
   };
-  profiles: {
+  profiles?: {
     full_name: string;
     email: string;
     phone?: string;
@@ -146,7 +146,7 @@ const PendingRequests = () => {
 
       toast({
         title: "Request approved",
-        description: `${request.profiles.full_name}'s request has been approved.`,
+        description: `${request.profiles?.full_name || 'User'}'s request has been approved.`,
       });
 
       fetchRequests();
@@ -176,7 +176,7 @@ const PendingRequests = () => {
 
       toast({
         title: "Request rejected",
-        description: `${selectedRequest.profiles.full_name}'s request has been rejected.`,
+        description: `${selectedRequest.profiles?.full_name || 'User'}'s request has been rejected.`,
       });
 
       setShowRejectDialog(false);
@@ -271,15 +271,15 @@ const PendingRequests = () => {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{request.profiles.full_name}</span>
+                            <span className="font-medium">{request.profiles?.full_name || 'Unknown User'}</span>
                             <Badge variant="secondary" className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               Pending
                             </Badge>
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {request.profiles.email}
-                            {request.profiles.phone && ` • ${request.profiles.phone}`}
+                            {request.profiles?.email || 'No email'}
+                            {request.profiles?.phone && ` • ${request.profiles.phone}`}
                           </div>
                         </div>
                         <div className="text-right text-sm text-muted-foreground">
@@ -363,7 +363,7 @@ const PendingRequests = () => {
           <DialogHeader>
             <DialogTitle>Reject Request</DialogTitle>
             <DialogDescription>
-              Are you sure you want to reject {selectedRequest?.profiles.full_name}'s request? 
+              Are you sure you want to reject {selectedRequest?.profiles?.full_name || 'this user'}'s request? 
               You can optionally provide a reason.
             </DialogDescription>
           </DialogHeader>
