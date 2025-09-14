@@ -108,39 +108,51 @@ const PendingRequests = () => {
 
   const approveRequest = async (request: JoinRequest) => {
     try {
-      // Start a transaction-like approach
+      // First, create the tenancy record (this is the critical part)
+      const tenancyData = {
+        tenant_id: request.tenant_id,
+        unit_id: request.unit_id,
+        rent_amount: Number(request.units?.rent_amount || 0),
+        start_date: new Date().toISOString().split('T')[0],
+        status: 'active'
+      };
+
+      console.log('Creating tenancy with data:', tenancyData);
+
+      const { data: tenancyResult, error: tenancyError } = await supabase
+        .from('tenancies')
+        .insert([tenancyData])
+        .select()
+        .single();
+
+      if (tenancyError) {
+        console.error('Tenancy creation error:', tenancyError);
+        throw new Error(`Failed to create tenancy: ${tenancyError.message}`);
+      }
+
+      console.log('Tenancy created successfully:', tenancyResult);
+
+      // Then update the join request status
       const { error: updateError } = await supabase
         .from('join_requests')
         .update({ status: 'approved' })
         .eq('id', request.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Join request update error:', updateError);
+        throw updateError;
+      }
 
-      // Create a tenancy record for the approved request
+      // Finally, mark unit as occupied
       if (request.unit_id) {
-        const { error: tenancyError } = await supabase
-          .from('tenancies')
-          .insert([{
-            tenant_id: request.tenant_id,
-            unit_id: request.unit_id,
-            rent_amount: request.units?.rent_amount || 0,
-            start_date: new Date().toISOString().split('T')[0], // Today's date
-            status: 'active'
-          }]);
+        const { error: unitError } = await supabase
+          .from('units')
+          .update({ status: 'occupied' })
+          .eq('id', request.unit_id);
 
-        if (tenancyError) {
-          console.error('Error creating tenancy:', tenancyError);
-          // Don't throw here, as the main approval was successful
-        } else {
-          // Mark unit as occupied
-          const { error: unitError } = await supabase
-            .from('units')
-            .update({ status: 'occupied' })
-            .eq('id', request.unit_id);
-
-          if (unitError) {
-            console.error('Error updating unit status:', unitError);
-          }
+        if (unitError) {
+          console.error('Unit status update error:', unitError);
+          // Don't throw here as the main operations succeeded
         }
       }
 
@@ -154,7 +166,7 @@ const PendingRequests = () => {
       console.error('Error approving request:', error);
       toast({
         title: "Error approving request",
-        description: error.message,
+        description: error.message || "Failed to create tenancy. Please try again.",
         variant: "destructive",
       });
     }
