@@ -239,7 +239,7 @@ const TenantDashboard = () => {
           <TabsContent value="overview" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Welcome to Your Tenant Dashboard</CardTitle>
+                <CardTitle>Welcome to Property Pay</CardTitle>
                 <CardDescription>
                   You don't have any active tenancies yet. Use the "Join Property" tab to search and request to join available rental properties.
                 </CardDescription>

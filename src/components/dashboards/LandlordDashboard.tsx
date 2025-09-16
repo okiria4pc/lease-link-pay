@@ -253,7 +253,7 @@ const LandlordDashboard = () => {
           {properties.length === 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Welcome to Your Property Management Dashboard</CardTitle>
+                <CardTitle>Welcome to Property Pay</CardTitle>
                 <CardDescription>
                   Get started by adding your first property. You can then add units to each property and manage your rentals.
                 </CardDescription>

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { User, LogOut } from 'lucide-react';
+import propertyPayLogo from '@/assets/property-pay-logo.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,7 +31,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold">Property Management</h1>
+              <div className="flex items-center space-x-3">
+                <img 
+                  src={propertyPayLogo} 
+                  alt="Property Pay" 
+                  className="h-8 w-8"
+                />
+                <h1 className="text-xl font-bold">Property Pay</h1>
+              </div>
               {profile && (
                 <Badge variant={getRoleBadgeVariant(profile.role)}>
                   {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
