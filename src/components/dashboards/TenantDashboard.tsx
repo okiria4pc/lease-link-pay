@@ -127,6 +127,32 @@ const TenantDashboard = () => {
     fetchTenantData();
   }, [profile?.user_id]);
 
+  // Listen for real-time updates on tenancies
+  useEffect(() => {
+    if (!profile?.user_id) return;
+
+    const channel = supabase
+      .channel('tenant-tenancies')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tenancies',
+          filter: `tenant_id=eq.${profile.user_id}`
+        },
+        () => {
+          console.log('Tenancy updated, refreshing data...');
+          fetchTenantData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.user_id]);
+
   const activeTenancies = tenancies.filter(t => t.status === 'active');
   const totalMonthlyRent = activeTenancies.reduce((sum, t) => sum + Number(t.rent_amount || 0), 0);
   const paidThisMonth = payments
