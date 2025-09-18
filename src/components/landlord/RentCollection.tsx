@@ -50,7 +50,7 @@ const RentCollection: React.FC = () => {
       const startDate = new Date(selectedMonth + '-01');
       const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
 
-      // Fetch active tenancies with tenant info
+      // Fetch tenancies with unit and property info  
       const { data: tenanciesData, error: tenanciesError } = await supabase
         .from('tenancies')
         .select(`
@@ -61,10 +61,6 @@ const RentCollection: React.FC = () => {
               name,
               landlord_id
             )
-          ),
-          profiles!tenancies_tenant_id_fkey (
-            full_name,
-            email
           )
         `)
         .eq('units.properties.landlord_id', profile.user_id)
@@ -81,6 +77,13 @@ const RentCollection: React.FC = () => {
         .in('tenancy_id', tenanciesData?.map(t => t.id) || []);
 
       if (paymentsError) throw paymentsError;
+
+      // Fetch tenant profiles separately
+      const tenantIds = (tenanciesData || []).map(t => t.tenant_id).filter(Boolean);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', tenantIds);
 
       // Process data to calculate collection info
       const processedData: RentCollectionData[] = (tenanciesData || []).map(tenancy => {
@@ -99,8 +102,13 @@ const RentCollection: React.FC = () => {
           ? Math.floor((currentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
           : 0;
 
+        const profile = (profilesData || []).find(p => p.user_id === tenancy.tenant_id);
+
         return {
-          tenancy,
+          tenancy: {
+            ...tenancy,
+            profiles: profile || { full_name: 'Unknown', email: 'Unknown' }
+          },
           payments: tenancyPayments,
           totalPaid,
           amountDue,
@@ -125,41 +133,67 @@ const RentCollection: React.FC = () => {
   }, [profile?.user_id, selectedMonth]);
 
   const handleSendReminder = async (tenantEmail: string, tenantName: string, amountDue: number) => {
-    // TODO: Implement email reminder functionality
-    toast({
-      title: 'Reminder sent',
-      description: `Payment reminder sent to ${tenantName}`,
-    });
+    try {
+      // In a real app, this would send an email or notification
+      toast({
+        title: "Reminder sent",
+        description: `Payment reminder sent to ${tenantName}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error sending reminder",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const totalExpectedRent = collectionData.reduce((sum, item) => sum + Number(item.tenancy.rent_amount), 0);
-  const totalCollectedRent = collectionData.reduce((sum, item) => sum + item.totalPaid, 0);
-  const totalOutstanding = collectionData.reduce((sum, item) => sum + item.amountDue, 0);
-  const collectionRate = totalExpectedRent > 0 ? (totalCollectedRent / totalExpectedRent) * 100 : 0;
+  const totalExpectedRent = collectionData.reduce((sum, data) => sum + Number(data.tenancy.rent_amount), 0);
+  const totalCollected = collectionData.reduce((sum, data) => sum + data.totalPaid, 0);
+  const totalOutstanding = collectionData.reduce((sum, data) => sum + data.amountDue, 0);
+  const collectionRate = totalExpectedRent > 0 ? (totalCollected / totalExpectedRent) * 100 : 0;
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Rent Collection</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 bg-muted rounded animate-pulse w-20"></div>
+                <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded animate-pulse w-16 mb-1"></div>
+                <div className="h-3 bg-muted rounded animate-pulse w-24"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Collection Summary */}
+      {/* Header with Month Selector */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Rent Collection</h2>
+        <div className="flex items-center space-x-2">
+          <label htmlFor="month-select" className="text-sm font-medium">
+            Month:
+          </label>
+          <input
+            id="month-select"
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="px-3 py-1 border border-border rounded-md"
+          />
+        </div>
+      </div>
+
+      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -168,7 +202,9 @@ const RentCollection: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${totalExpectedRent.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">For {selectedMonth}</p>
+            <p className="text-xs text-muted-foreground">
+              From {collectionData.length} properties
+            </p>
           </CardContent>
         </Card>
 
@@ -178,8 +214,10 @@ const RentCollection: React.FC = () => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalCollectedRent.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{collectionRate.toFixed(1)}% collection rate</p>
+            <div className="text-2xl font-bold text-green-600">${totalCollected.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {collectionRate.toFixed(1)}% collection rate
+            </p>
           </CardContent>
         </Card>
 
@@ -189,15 +227,17 @@ const RentCollection: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalOutstanding.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Amount overdue</p>
+            <div className="text-2xl font-bold text-red-600">${totalOutstanding.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {collectionData.filter(d => d.amountDue > 0).length} tenants
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Collection Rate</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{collectionRate.toFixed(1)}%</div>
@@ -206,133 +246,83 @@ const RentCollection: React.FC = () => {
         </Card>
       </div>
 
-      {/* Month Selector */}
+      {/* Collection Details */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Rent Collection Details
-              </CardTitle>
-              <CardDescription>Track rent payments for each tenant</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="month" className="text-sm font-medium">Month:</label>
-              <input
-                id="month"
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-3 py-1 text-sm border rounded-md"
-              />
-            </div>
-          </div>
+          <CardTitle>Collection Details</CardTitle>
+          <CardDescription>
+            Rent collection status for {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </CardDescription>
         </CardHeader>
-        
         <CardContent>
           <div className="space-y-4">
-            {collectionData.map((item) => (
-              <div
-                key={item.tenancy.id}
-                className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-start justify-between">
+            {collectionData.length === 0 ? (
+              <div className="text-center py-8">
+                <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-medium mb-2">No rental data found</h3>
+                <p className="text-sm text-muted-foreground">
+                  No active tenancies found for the selected month.
+                </p>
+              </div>
+            ) : (
+              collectionData.map((data) => (
+                <div key={data.tenancy.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-semibold">{item.tenancy.profiles.full_name}</h4>
-                      {item.daysOverdue > 0 && (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          {item.daysOverdue} days overdue
-                        </Badge>
-                      )}
-                      {item.amountDue === 0 && (
-                        <Badge variant="default">
-                          Paid in full
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {item.tenancy.units.properties.name} - Unit {item.tenancy.units.unit_number}
-                    </p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                    <div className="flex items-center space-x-3">
                       <div>
-                        <span className="text-muted-foreground">Monthly Rent:</span>
-                        <p className="font-medium">${Number(item.tenancy.rent_amount).toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Amount Paid:</span>
-                        <p className="font-medium text-green-600">${item.totalPaid.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Outstanding:</span>
-                        <p className={`font-medium ${item.amountDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          ${item.amountDue.toLocaleString()}
+                        <h4 className="font-medium">{data.tenancy.profiles.full_name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {data.tenancy.units.properties.name} - Unit {data.tenancy.units.unit_number}
                         </p>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Progress:</span>
-                        <div className="mt-1">
-                          <Progress 
-                            value={item.totalPaid > 0 ? (item.totalPaid / Number(item.tenancy.rent_amount)) * 100 : 0} 
-                            className="h-2"
-                          />
-                        </div>
-                      </div>
                     </div>
-                    
-                    {/* Recent Payments */}
-                    {item.payments.length > 0 && (
-                      <div className="mt-3 pt-3 border-t">
-                        <h5 className="text-sm font-medium mb-2">Recent Payments:</h5>
-                        <div className="space-y-1">
-                          {item.payments.slice(0, 3).map((payment) => (
-                            <div key={payment.id} className="flex items-center justify-between text-xs">
-                              <span>
-                                {new Date(payment.payment_date).toLocaleDateString()} - {payment.method}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">${Number(payment.amount).toLocaleString()}</span>
-                                <Badge 
-                                  variant={payment.status === 'completed' ? 'default' : 'secondary'} 
-                                  className="text-xs"
-                                >
-                                  {payment.status}
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                   
-                  <div className="flex flex-col gap-2">
-                    {item.amountDue > 0 && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleSendReminder(
-                          item.tenancy.profiles.email,
-                          item.tenancy.profiles.full_name,
-                          item.amountDue
-                        )}
-                        className="flex items-center gap-1"
-                      >
-                        <Send className="h-3 w-3" />
-                        Send Reminder
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline">
-                      Generate Invoice
-                    </Button>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <div className="font-medium">${Number(data.tenancy.rent_amount).toLocaleString()}</div>
+                      <div className="text-sm text-muted-foreground">Expected</div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className="font-medium text-green-600">${data.totalPaid.toLocaleString()}</div>
+                      <div className="text-sm text-muted-foreground">Paid</div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className={`font-medium ${data.amountDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        ${data.amountDue.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Due</div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={
+                        data.amountDue === 0 ? 'default' : 
+                        data.daysOverdue > 0 ? 'destructive' : 'secondary'
+                      }>
+                        {data.amountDue === 0 ? 'Paid' : 
+                         data.daysOverdue > 0 ? `${data.daysOverdue}d overdue` : 'Pending'}
+                      </Badge>
+                      
+                      {data.amountDue > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendReminder(
+                            data.tenancy.profiles.email,
+                            data.tenancy.profiles.full_name,
+                            data.amountDue
+                          )}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

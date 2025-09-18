@@ -68,7 +68,7 @@ const TenantManagement: React.FC = () => {
     if (!profile?.user_id) return;
 
     try {
-      // Fetch tenancies with tenant profiles
+      // Fetch tenancies with unit and property info
       const { data: tenantsData, error: tenantsError } = await supabase
         .from('tenancies')
         .select(`
@@ -81,11 +81,6 @@ const TenantManagement: React.FC = () => {
               address,
               landlord_id
             )
-          ),
-          profiles!tenancies_tenant_id_fkey (
-            full_name,
-            email,
-            phone
           )
         `)
         .eq('units.properties.landlord_id', profile.user_id)
@@ -108,7 +103,24 @@ const TenantManagement: React.FC = () => {
 
       if (unitsError) throw unitsError;
 
-      setTenants(tenantsData || []);
+      // Fetch tenant profiles separately
+      const tenantIds = (tenantsData || []).map(t => t.tenant_id).filter(Boolean);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email, phone')
+        .in('user_id', tenantIds);
+
+      // Combine tenancy and profile data
+      const enrichedTenantsData = (tenantsData || []).map(tenant => ({
+        ...tenant,
+        profiles: (profilesData || []).find(p => p.user_id === tenant.tenant_id) || {
+          full_name: 'Unknown',
+          email: 'Unknown',
+          phone: null
+        }
+      }));
+
+      setTenants(enrichedTenantsData);
       setAvailableUnits(unitsData || []);
     } catch (error: any) {
       toast({
