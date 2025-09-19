@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,13 +20,16 @@ import {
   MapPin,
   Clock,
   MessageCircle,
-  User
+  User,
+  Send,
+  Search
 } from 'lucide-react';
 import MaintenanceRequestForm from '@/components/forms/MaintenanceRequestForm';
 import PaymentInterface from '@/components/tenant/PaymentInterface';
 import BottomNavigation from '@/components/mobile/BottomNavigation';
 import ActivityFeed from '@/components/mobile/ActivityFeed';
 import PaymentMethods from '@/components/mobile/PaymentMethods';
+import JoinPropertySearch from '@/components/tenant/JoinPropertySearch';
 
 interface Tenancy {
   id: string;
@@ -55,10 +59,25 @@ interface Payment {
   method: string;
 }
 
+interface Message {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  content: string;
+  created_at: string;
+  sender_profile?: {
+    full_name: string;
+    role: string;
+  };
+}
+
 const TenantDashboard = () => {
   const [tenancies, setTenancies] = useState<Tenancy[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
   const [showPaymentInterface, setShowPaymentInterface] = useState(false);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
@@ -144,8 +163,71 @@ const TenantDashboard = () => {
     setShowMaintenanceForm(true);
   };
 
+  const fetchMessages = async () => {
+    if (!profile?.user_id) return;
+
+    setMessagesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender_profile:profiles!messages_sender_id_fkey (
+            full_name,
+            role
+          )
+        `)
+        .or(`sender_id.eq.${profile.user_id},recipient_id.eq.${profile.user_id}`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (error: any) {
+      console.error('Error fetching messages:', error);
+      // Don't show error toast for messages as it's not critical
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  const sendMessage = async (recipientId: string) => {
+    if (!profile?.user_id || !newMessage.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .insert([{
+          sender_id: profile.user_id,
+          recipient_id: recipientId,
+          content: newMessage.trim(),
+        }]);
+
+      if (error) throw error;
+
+      setNewMessage('');
+      fetchMessages();
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully.",
+      });
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error sending message",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getLandlordId = () => {
+    return currentTenancy?.units?.properties?.landlord_id || null;
+  };
+
   useEffect(() => {
     fetchTenantData();
+    fetchMessages();
   }, [profile?.user_id]);
 
   // Listen for real-time updates on tenancies
@@ -321,10 +403,86 @@ const TenantDashboard = () => {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Messages</h2>
             
+            {/* Message input for current landlord */}
+            {currentTenancy && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Message Your Landlord</CardTitle>
+                  <CardDescription>
+                    Send a message regarding {currentTenancy.units.properties.name}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Type your message..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && sendMessage(getLandlordId()!)}
+                    />
+                    <Button 
+                      onClick={() => sendMessage(getLandlordId()!)}
+                      disabled={!newMessage.trim()}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Message History */}
             <Card>
-              <CardContent className="text-center py-8">
-                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No messages yet</p>
+              <CardHeader>
+                <CardTitle className="text-lg">Message History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {messagesLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="h-16 bg-muted rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No messages yet</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Start a conversation with your landlord above
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {messages.map((message) => (
+                      <div 
+                        key={message.id} 
+                        className={`flex ${message.sender_id === profile?.user_id ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`max-w-xs px-4 py-2 rounded-lg ${
+                          message.sender_id === profile?.user_id 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted'
+                        }`}>
+                          <div className="text-sm">
+                            {message.content}
+                          </div>
+                          <div className={`text-xs mt-1 ${
+                            message.sender_id === profile?.user_id 
+                              ? 'text-primary-foreground/70' 
+                              : 'text-muted-foreground'
+                          }`}>
+                            {message.sender_id === profile?.user_id 
+                              ? 'You' 
+                              : message.sender_profile?.full_name || 'Landlord'
+                            } • {new Date(message.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -514,6 +672,12 @@ const TenantDashboard = () => {
                 <ActivityFeed activities={activities} />
               </div>
             )}
+
+            {/* Property Search & Join Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Find New Properties</h3>
+              <JoinPropertySearch />
+            </div>
           </div>
         );
     }
