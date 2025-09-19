@@ -2,16 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, DollarSign, Home, AlertCircle, Wrench, FileText, Receipt } from 'lucide-react';
+import { 
+  Calendar, 
+  DollarSign, 
+  Home, 
+  AlertCircle, 
+  Wrench, 
+  FileText, 
+  Receipt, 
+  Bell,
+  CreditCard,
+  MapPin,
+  Clock,
+  MessageCircle,
+  User
+} from 'lucide-react';
 import MaintenanceRequestForm from '@/components/forms/MaintenanceRequestForm';
 import PaymentInterface from '@/components/tenant/PaymentInterface';
-import LeaseAgreementCard from '@/components/tenant/LeaseAgreementCard';
-import MaintenanceRequests from '@/components/tenant/MaintenanceRequests';
-import JoinPropertySearch from '@/components/tenant/JoinPropertySearch';
+import BottomNavigation from '@/components/mobile/BottomNavigation';
+import ActivityFeed from '@/components/mobile/ActivityFeed';
+import PaymentMethods from '@/components/mobile/PaymentMethods';
 
 interface Tenancy {
   id: string;
@@ -47,8 +61,9 @@ const TenantDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
   const [showPaymentInterface, setShowPaymentInterface] = useState(false);
+  const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [selectedTenancy, setSelectedTenancy] = useState<Tenancy | null>(null);
-  const [defaultTab, setDefaultTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('home');
   const { profile } = useAuth();
   const { toast } = useToast();
 
@@ -104,6 +119,7 @@ const TenantDashboard = () => {
 
   const handlePaymentSuccess = () => {
     setShowPaymentInterface(false);
+    setShowPaymentMethods(false);
     setSelectedTenancy(null);
     fetchTenantData();
   };
@@ -115,6 +131,11 @@ const TenantDashboard = () => {
 
   const handlePayRent = (tenancy: Tenancy) => {
     setSelectedTenancy(tenancy);
+    setShowPaymentMethods(true);
+  };
+
+  const handlePaymentSelect = (method: string) => {
+    setShowPaymentMethods(false);
     setShowPaymentInterface(true);
   };
 
@@ -154,320 +175,402 @@ const TenantDashboard = () => {
   }, [profile?.user_id]);
 
   const activeTenancies = tenancies.filter(t => t.status === 'active');
-  const totalMonthlyRent = activeTenancies.reduce((sum, t) => sum + Number(t.rent_amount || 0), 0);
+  const currentTenancy = activeTenancies[0];
+  
+  // Calculate rent status
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  
   const paidThisMonth = payments
     .filter(p => {
       const paymentDate = new Date(p.payment_date);
-      const currentMonth = new Date();
-      return paymentDate.getMonth() === currentMonth.getMonth() && 
-             paymentDate.getFullYear() === currentMonth.getFullYear() &&
+      return paymentDate.getMonth() === currentMonth && 
+             paymentDate.getFullYear() === currentYear &&
              p.status === 'completed';
     })
     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
+  const totalMonthlyRent = activeTenancies.reduce((sum, t) => sum + Number(t.rent_amount || 0), 0);
+  const outstandingBalance = totalMonthlyRent - paidThisMonth;
+  
+  // Calculate days until rent due (assuming rent is due on the 1st of each month)
+  const nextDueDate = new Date(currentYear, currentMonth + 1, 1);
+  const daysUntilDue = Math.ceil((nextDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Determine rent status
+  let rentStatus: 'paid' | 'due_soon' | 'overdue' = 'paid';
+  if (outstandingBalance > 0) {
+    if (daysUntilDue <= 0) {
+      rentStatus = 'overdue';
+    } else if (daysUntilDue <= 5) {
+      rentStatus = 'due_soon';
+    }
+  }
+
+  // Activity feed data
+  const activities = [
+    ...payments.slice(0, 3).map(p => ({
+      id: p.id,
+      type: 'payment' as const,
+      title: 'Rent Payment',
+      description: `$${Number(p.amount).toLocaleString()} via ${p.method}`,
+      date: p.payment_date,
+      status: p.status as 'completed' | 'pending' | 'overdue',
+      amount: Number(p.amount)
+    })),
+    // Mock messages for demo
+    {
+      id: 'msg-1',
+      type: 'message' as const,
+      title: 'Message from Landlord',
+      description: 'Property maintenance scheduled for next week',
+      date: new Date().toISOString(),
+    }
+  ];
+
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="h-4 bg-muted rounded animate-pulse w-20"></div>
-                <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted rounded animate-pulse w-16 mb-1"></div>
-                <div className="h-3 bg-muted rounded animate-pulse w-24"></div>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="min-h-screen bg-background pb-20">
+        {/* Marker */}
+        <div className="bg-primary text-primary-foreground p-2 text-center text-sm font-medium">
+          NEW TENANT DASHBOARD ACTIVE
         </div>
-      </div>
-    );
-  }
-
-  if (tenancies.length === 0) {
-    return (
-      <div className="space-y-6">
-        {/* Stats Cards - Show zeros for new tenants */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Rentals</CardTitle>
-              <Home className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Currently renting</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monthly Rent</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">$0</div>
-              <p className="text-xs text-muted-foreground">Total monthly rent due</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Paid This Month</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">$0</div>
-              <p className="text-xs text-muted-foreground">Payments this month</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Tabs - Allow access to Join Property feature */}
-        <Tabs value={defaultTab} onValueChange={setDefaultTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="join">Join Property</TabsTrigger>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="join" className="space-y-4">
-            <JoinPropertySearch />
-          </TabsContent>
-
-          <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Welcome to Property Pay</CardTitle>
-                <CardDescription>
-                  You don't have any active tenancies yet. Use the "Join Property" tab to search and request to join available rental properties.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-6">
-                  <Home className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">No rental units found</p>
-                  <Button onClick={() => setDefaultTab('join')}>
-                    Browse Properties
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Rentals</CardTitle>
-            <Home className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeTenancies.length}</div>
-            <p className="text-xs text-muted-foreground">Currently renting</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Rent</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalMonthlyRent.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Total monthly rent due</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Paid This Month</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${paidThisMonth.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Payments this month</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="join">Join Property</TabsTrigger>
-          <TabsTrigger value="lease">Lease</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          {/* Current Rentals */}
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">My Rentals</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {activeTenancies.map((tenancy) => (
-                <Card key={tenancy.id}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>{tenancy.units.properties.name}</span>
-                      <Badge variant={tenancy.status === 'active' ? 'default' : 'secondary'}>
-                        {tenancy.status}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Unit {tenancy.units.unit_number} - {tenancy.units.bedrooms} bed, {tenancy.units.bathrooms} bath
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Address:</span>
-                        <span className="font-medium text-right">
-                          {tenancy.units.properties.address}, {tenancy.units.properties.city}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Monthly Rent:</span>
-                        <span className="font-medium">${Number(tenancy.rent_amount).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Start Date:</span>
-                        <span className="font-medium">
-                          {new Date(tenancy.start_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {tenancy.end_date && (
-                        <div className="flex justify-between text-sm">
-                          <span>End Date:</span>
-                          <span className="font-medium">
-                            {new Date(tenancy.end_date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 mt-4">
-                      <Button 
-                        size="sm" 
-                        className="flex-1" 
-                        onClick={() => handlePayRent(tenancy)}
-                      >
-                        Pay Rent
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex items-center gap-1"
-                        onClick={() => handleMaintenanceRequest(tenancy)}
-                      >
-                        <Wrench className="h-4 w-4" />
-                        Maintenance
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+        <div className="p-6 space-y-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-48 mb-4"></div>
+            <div className="grid gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-24 bg-muted rounded"></div>
               ))}
             </div>
           </div>
-        </TabsContent>
+        </div>
+      </div>
+    );
+  }
 
-        <TabsContent value="join" className="space-y-4">
-          <JoinPropertySearch />
-        </TabsContent>
-
-        <TabsContent value="lease" className="space-y-4">
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Lease Agreements</h2>
-            {activeTenancies.map((tenancy) => (
-              <LeaseAgreementCard key={tenancy.id} tenancy={tenancy} />
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="payments" className="space-y-4">
-          <div className="space-y-4">
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'payments':
+        return (
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Payment History</h2>
-              {activeTenancies.length > 0 && (
-                <Button 
-                  onClick={() => handlePayRent(activeTenancies[0])}
-                  className="flex items-center gap-2"
-                >
-                  <DollarSign className="h-4 w-4" />
-                  Make Payment
-                </Button>
-              )}
             </div>
             
             {payments.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Receipt className="h-5 w-5" />
-                    Transaction History
-                  </CardTitle>
-                  <CardDescription>All your rent payments and receipts</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {payments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="space-y-4">
+                {payments.map((payment) => (
+                  <Card key={payment.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
                         <div>
                           <div className="font-medium">${Number(payment.amount).toLocaleString()}</div>
                           <div className="text-sm text-muted-foreground">
                             {new Date(payment.payment_date).toLocaleDateString()} • {payment.method}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={
-                            payment.status === 'completed' ? 'default' : 
-                            payment.status === 'pending' ? 'secondary' : 'destructive'
-                          }>
-                            {payment.status}
-                          </Badge>
-                          {payment.status === 'completed' && (
-                            <Button variant="ghost" size="sm">
-                              <Receipt className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        <Badge 
+                          className={
+                            payment.status === 'completed' ? 'bg-success text-success-foreground' : 
+                            payment.status === 'pending' ? 'bg-warning text-warning-foreground' : 
+                            'bg-destructive text-destructive-foreground'
+                          }
+                        >
+                          {payment.status}
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : (
               <Card>
                 <CardContent className="text-center py-8">
                   <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="font-medium mb-2">No payment history</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Your payment history will appear here once you make your first payment.
-                  </p>
+                  <p className="text-muted-foreground">No payment history yet</p>
                 </CardContent>
               </Card>
             )}
           </div>
-        </TabsContent>
+        );
 
-        <TabsContent value="maintenance" className="space-y-4">
-          <MaintenanceRequests 
-            onCreateRequest={() => {
-              if (activeTenancies.length > 0) {
-                handleMaintenanceRequest(activeTenancies[0]);
-              }
-            }}
-          />
-        </TabsContent>
-      </Tabs>
+      case 'maintenance':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Maintenance</h2>
+              <Button onClick={() => currentTenancy && handleMaintenanceRequest(currentTenancy)}>
+                <Wrench className="h-4 w-4 mr-2" />
+                New Request
+              </Button>
+            </div>
+            
+            <Card>
+              <CardContent className="text-center py-8">
+                <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No maintenance requests yet</p>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'messages':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Messages</h2>
+            
+            <Card>
+              <CardContent className="text-center py-8">
+                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No messages yet</p>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'profile':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">Profile</h2>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4 mb-6">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src="" />
+                    <AvatarFallback className="text-lg">
+                      {profile?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-xl font-semibold">{profile?.full_name}</h3>
+                    <p className="text-muted-foreground">{profile?.email}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Phone:</span>
+                    <span>{profile?.phone || 'Not provided'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Role:</span>
+                    <span className="capitalize">{profile?.role}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      default: // home
+        return (
+          <div className="space-y-6">
+            {/* Urgent Alert */}
+            {rentStatus === 'overdue' && (
+              <Card className="border-overdue bg-overdue/10">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5 text-overdue flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-overdue">Rent Overdue</p>
+                      <p className="text-sm text-overdue/80">Please pay your rent immediately</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {rentStatus === 'due_soon' && (
+              <Card className="border-warning bg-warning/10">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-warning flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-warning">Rent Due Soon</p>
+                      <p className="text-sm text-warning/80">Rent due in {daysUntilDue} days</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Key Info Cards */}
+            <div className="grid gap-4">
+              {/* Rent Due Card */}
+              <Card className={`${
+                rentStatus === 'paid' ? 'border-success bg-success/5' : 
+                rentStatus === 'due_soon' ? 'border-warning bg-warning/5' : 
+                'border-overdue bg-overdue/5'
+              }`}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-full ${
+                        rentStatus === 'paid' ? 'bg-success text-success-foreground' : 
+                        rentStatus === 'due_soon' ? 'bg-warning text-warning-foreground' : 
+                        'bg-overdue text-overdue-foreground'
+                      }`}>
+                        <DollarSign className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold">
+                          {outstandingBalance > 0 ? `$${outstandingBalance.toLocaleString()}` : 'Paid'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {outstandingBalance > 0 ? 'Outstanding Balance' : 'Rent Status'}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className={
+                      rentStatus === 'paid' ? 'bg-success text-success-foreground' : 
+                      rentStatus === 'due_soon' ? 'bg-warning text-warning-foreground' : 
+                      'bg-overdue text-overdue-foreground'
+                    }>
+                      {rentStatus === 'paid' ? 'Paid' : rentStatus === 'due_soon' ? 'Due Soon' : 'Overdue'}
+                    </Badge>
+                  </div>
+
+                  {outstandingBalance > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Next Due Date:</span>
+                        <span className="font-medium">{nextDueDate.toLocaleDateString()}</span>
+                      </div>
+                      <Button 
+                        className="w-full h-12 text-lg font-semibold"
+                        onClick={() => currentTenancy && handlePayRent(currentTenancy)}
+                      >
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Pay Now - ${outstandingBalance.toLocaleString()}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Property Info Card */}
+              {currentTenancy && (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-3 rounded-full bg-primary/10">
+                        <Home className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold">{currentTenancy.units.properties.name}</h3>
+                        <p className="text-sm text-muted-foreground">Unit {currentTenancy.units.unit_number}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span>{currentTenancy.units.properties.address}, {currentTenancy.units.properties.city}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Monthly Rent:</span>
+                        <span className="font-medium">${Number(currentTenancy.rent_amount).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Bedrooms:</span>
+                        <span>{currentTenancy.units.bedrooms}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Bathrooms:</span>
+                        <span>{currentTenancy.units.bathrooms}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-16 flex-col gap-2"
+                onClick={() => currentTenancy && handleMaintenanceRequest(currentTenancy)}
+              >
+                <Wrench className="h-6 w-6" />
+                <span>Maintenance</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-16 flex-col gap-2"
+              >
+                <FileText className="h-6 w-6" />
+                <span>Lease Agreement</span>
+              </Button>
+            </div>
+
+            {/* Activity Feed */}
+            {activities.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Recent Activity</h3>
+                <ActivityFeed activities={activities} />
+              </div>
+            )}
+          </div>
+        );
+    }
+  };
+
+  return (
+    <>
+      <div className="min-h-screen bg-background pb-20">
+        {/* Marker */}
+        <div className="bg-primary text-primary-foreground p-2 text-center text-sm font-medium">
+          NEW TENANT DASHBOARD ACTIVE
+        </div>
+
+        {/* Header */}
+        <div className="bg-card border-b p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarImage src="" />
+                <AvatarFallback>
+                  {profile?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-lg font-semibold">Hello, {profile?.full_name?.split(' ')[0] || 'Tenant'}</h1>
+                <p className="text-sm text-muted-foreground">Property Pay Dashboard</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4">
+          {tenancies.length === 0 ? (
+            <div className="text-center py-12">
+              <Home className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No Active Rentals</h3>
+              <p className="text-muted-foreground mb-4">
+                You don't have any active tenancies yet.
+              </p>
+              <Button>Browse Properties</Button>
+            </div>
+          ) : (
+            renderContent()
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        notificationCount={0}
+      />
 
       {/* Modals */}
       {showMaintenanceForm && selectedTenancy && (
@@ -476,24 +579,35 @@ const TenantDashboard = () => {
           unitNumber={selectedTenancy.units.unit_number}
           propertyName={selectedTenancy.units.properties.name}
           onSuccess={handleMaintenanceSuccess}
-          onCancel={() => {
-            setShowMaintenanceForm(false);
-            setSelectedTenancy(null);
-          }}
+          onCancel={() => setShowMaintenanceForm(false)}
         />
+      )}
+
+      {showPaymentMethods && selectedTenancy && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+          <div className="bg-background w-full rounded-t-3xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Select Payment Method</h2>
+              <Button variant="ghost" onClick={() => setShowPaymentMethods(false)}>
+                ✕
+              </Button>
+            </div>
+            <PaymentMethods
+              amount={Number(selectedTenancy.rent_amount)}
+              onPaymentSelect={handlePaymentSelect}
+            />
+          </div>
+        </div>
       )}
 
       {showPaymentInterface && selectedTenancy && (
         <PaymentInterface
           tenancy={selectedTenancy}
           onSuccess={handlePaymentSuccess}
-          onCancel={() => {
-            setShowPaymentInterface(false);
-            setSelectedTenancy(null);
-          }}
+          onCancel={() => setShowPaymentInterface(false)}
         />
       )}
-    </div>
+    </>
   );
 };
 
