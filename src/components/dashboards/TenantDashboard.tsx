@@ -658,23 +658,49 @@ const TenantDashboard = () => {
     <>
       <div className="min-h-screen bg-background pb-20">
         {/* Header */}
-        <div className="bg-card border-b p-4">
+        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarImage src="" />
-                <AvatarFallback>
-                  {profile?.full_name?.split(' ').map(n => n[0]).join('') || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-lg font-semibold">Hello, {profile?.full_name?.split(' ')[0] || 'Tenant'}</h1>
-                <p className="text-sm text-muted-foreground">Property Pay Dashboard</p>
-              </div>
+            {/* Logo on the left */}
+            <div className="flex items-center">
+              <img 
+                src={propertyPayLogo} 
+                alt="Property Pay" 
+                className="h-8 w-auto"
+              />
             </div>
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
+            
+            {/* Right side - Notification bell and three-dot menu */}
+            <div className="flex items-center gap-2">
+              {/* Notification Bell */}
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-gray-100">
+                <Bell className="h-5 w-5 text-gray-600" />
+              </Button>
+              
+              {/* Three-dot menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-gray-100">
+                    <MoreVertical className="h-5 w-5 text-gray-600" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem 
+                    onClick={() => setActiveTab('profile')}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <User className="h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
