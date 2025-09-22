@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +21,9 @@ import {
   User,
   Send,
   CheckCircle,
-  XCircle
+  XCircle,
+  MoreVertical,
+  LogOut
 } from 'lucide-react';
 import MaintenanceRequestForm from '@/components/forms/MaintenanceRequestForm';
 import PaymentInterface from '@/components/tenant/PaymentInterface';
@@ -28,6 +31,7 @@ import BottomNavigation from '@/components/mobile/BottomNavigation';
 import ActivityFeed from '@/components/mobile/ActivityFeed';
 import PaymentMethods from '@/components/mobile/PaymentMethods';
 import JoinPropertySearch from '@/components/tenant/JoinPropertySearch';
+import propertyPayLogo from '@/assets/property-pay-logo.png';
 
 interface Tenancy {
   id: string;
@@ -206,6 +210,23 @@ const TenantDashboard = () => {
   const handleMaintenanceRequest = (tenancy: Tenancy) => {
     setSelectedTenancy(tenancy);
     setShowMaintenanceForm(true);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Signed out successfully",
+        description: "You have been signed out of your account.",
+      });
+    } catch (error: any) {
+      console.error('Error signing out:', error);
+      toast({
+        title: "Error signing out",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   useEffect(() => {
