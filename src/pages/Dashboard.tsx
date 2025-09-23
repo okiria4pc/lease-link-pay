@@ -60,7 +60,6 @@ const Dashboard = () => {
   };
 
   const roleConfig = getRoleConfig();
-  const RoleIcon = roleConfig.icon;
 
   const renderDashboard = () => {
     switch (profile.role) {
@@ -95,55 +94,6 @@ const Dashboard = () => {
   return (
     <div className={`min-h-screen bg-gradient-to-br ${roleConfig.bgColor} animate-gradient-fade`}>
       <div className="space-y-8 p-6 max-w-7xl mx-auto">
-        {/* Enhanced Header Section */}
-        <div className="animate-slide-down">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-2xl bg-gradient-to-r ${roleConfig.color} shadow-lg`}>
-                  <RoleIcon className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                    Dashboard
-                  </h1>
-                  <p className="text-muted-foreground text-lg">
-                    {roleConfig.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-white/20">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-400 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold text-sm">
-                    {profile.full_name?.[0]?.toUpperCase() || profile.email?.[0]?.toUpperCase()}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-700">
-                    {profile.full_name || profile.email}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
-                      profile.role === 'landlord' ? 'bg-blue-100 text-blue-700' :
-                      profile.role === 'tenant' ? 'bg-green-100 text-green-700' :
-                      profile.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {profile.role || 'unknown'}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      👋 Welcome back!
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Dashboard Content */}
         <div className="animate-fade-in-up">
           {renderDashboard()}
